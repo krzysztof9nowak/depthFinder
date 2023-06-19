@@ -165,14 +165,14 @@ void HAL_TIM_PWM_MspInit(TIM_HandleTypeDef* htim_pwm)
 }
 
 /**
-* @brief TIM_OnePulse MSP Initialization
+* @brief TIM_OC MSP Initialization
 * This function configures the hardware resources used in this example
-* @param htim_onepulse: TIM_OnePulse handle pointer
+* @param htim_oc: TIM_OC handle pointer
 * @retval None
 */
-void HAL_TIM_OnePulse_MspInit(TIM_HandleTypeDef* htim_onepulse)
+void HAL_TIM_OC_MspInit(TIM_HandleTypeDef* htim_oc)
 {
-  if(htim_onepulse->Instance==TIM3)
+  if(htim_oc->Instance==TIM3)
   {
   /* USER CODE BEGIN TIM3_MspInit 0 */
 
@@ -238,14 +238,14 @@ void HAL_TIM_PWM_MspDeInit(TIM_HandleTypeDef* htim_pwm)
 }
 
 /**
-* @brief TIM_OnePulse MSP De-Initialization
+* @brief TIM_OC MSP De-Initialization
 * This function freeze the hardware resources used in this example
-* @param htim_onepulse: TIM_OnePulse handle pointer
+* @param htim_oc: TIM_OC handle pointer
 * @retval None
 */
-void HAL_TIM_OnePulse_MspDeInit(TIM_HandleTypeDef* htim_onepulse)
+void HAL_TIM_OC_MspDeInit(TIM_HandleTypeDef* htim_oc)
 {
-  if(htim_onepulse->Instance==TIM3)
+  if(htim_oc->Instance==TIM3)
   {
   /* USER CODE BEGIN TIM3_MspDeInit 0 */
 
