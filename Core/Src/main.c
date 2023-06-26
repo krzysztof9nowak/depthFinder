@@ -29,7 +29,13 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+#define PROFILE_MAX_SIZE 256
+typedef struct{
+    uint16_t tick[PROFILE_MAX_SIZE];
+    uint16_t amplitude[PROFILE_MAX_SIZE];
+    uint16_t size;
+    uint16_t target_density;
+} profile_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -45,6 +51,8 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc;
 
+SPI_HandleTypeDef hspi1;
+
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim3;
 
@@ -52,6 +60,7 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 sonar_t sonar = {0};
+profile_t profile = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -61,6 +70,7 @@ static void MX_ADC_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -68,7 +78,7 @@ static void MX_TIM3_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-uint32_t measure_depth(){
+uint32_t measure_depth(profile_t *prof){
     sonar.tx_count_sent = 0;
     HAL_GPIO_WritePin(NULLIFIER_GPIO_Port, NULLIFIER_Pin, 1);
     __HAL_TIM_SET_COUNTER(&htim1, 0);
@@ -85,19 +95,31 @@ uint32_t measure_depth(){
     uint16_t tick = 0;
     const int16_t peak_threshold = 100;
     const uint16_t timeout = 30000;
+    uint16_t last_profile = 0;
+    prof->size = 0;
     do {
         tick = __HAL_TIM_GET_COUNTER(&htim3);
         if(HAL_ADC_Start(&hadc) != HAL_OK) return -1;
         if(HAL_ADC_PollForConversion(&hadc, 10) != HAL_OK) return -1;
         int16_t val = (int16_t)HAL_ADC_GetValue(&hadc);
+
+        if(prof->size < (PROFILE_MAX_SIZE - 1) && tick >= (last_profile + prof->target_density)){
+            prof->amplitude[prof->size] = val;
+            prof->tick[prof->size] = tick;
+            prof->size++;
+            last_profile = tick;
+        }
+
         if(val < min_val){
             min_val = val;
         }
 
-        if(val > min_val + peak_threshold){
+        if(peak_ticks == 0 && val > min_val + peak_threshold){
             peak_ticks = __HAL_TIM_GET_COUNTER(&htim3);
-            break;
+//            break;
         }
+
+
     } while(tick < timeout);
     if(peak_ticks == 0) return -1;
 
@@ -119,6 +141,23 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *tim){
     }
 }
 
+void send_profile(profile_t *prof){
+    const char* start = "S\r\n";
+    HAL_UART_Transmit(&huart1, start, strlen(start), 10);
+    for(int i=0;i<prof->size;i++){
+        static char buf1[20];
+        static char buf2[20];
+        itoa(prof->tick[i], buf1, 10);
+        strcat(buf1, " ");
+        itoa(prof->amplitude[i], buf2, 10);
+        strcat(buf1, buf2);
+        strcat(buf1, "\r\n");
+        HAL_UART_Transmit(&huart1, buf1, strlen(buf1), 100);
+
+    }
+    const char* end = "F\r\n";
+    HAL_UART_Transmit(&huart1, end, strlen(end), 10);
+}
 
 /* USER CODE END 0 */
 
@@ -154,8 +193,10 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM1_Init();
   MX_TIM3_Init();
+  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
   sonar.tx_count = 20;
+  profile.target_density = 1;
     __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_UPDATE);
 
   /* USER CODE END 2 */
@@ -167,7 +208,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    uint32_t dist_cm = measure_depth();
+    uint32_t dist_cm = measure_depth(&profile);
     if(dist_cm == -1){
         const char *buf = "E\r\n";
         HAL_UART_Transmit(&huart1, buf, strlen(buf), 100);
@@ -176,6 +217,7 @@ int main(void)
         itoa(dist_cm, buf, 10);
         strcat(buf, "cm\r\n");
         HAL_UART_Transmit(&huart1, buf, strlen(buf), 100);
+        send_profile(&profile);
     }
   HAL_Delay(1000);
   }
@@ -283,6 +325,46 @@ static void MX_ADC_Init(void)
 }
 
 /**
+  * @brief SPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI1_Init(void)
+{
+
+  /* USER CODE BEGIN SPI1_Init 0 */
+
+  /* USER CODE END SPI1_Init 0 */
+
+  /* USER CODE BEGIN SPI1_Init 1 */
+
+  /* USER CODE END SPI1_Init 1 */
+  /* SPI1 parameter configuration*/
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 7;
+  hspi1.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
+  hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI1_Init 2 */
+
+  /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
   * @brief TIM1 Initialization Function
   * @param None
   * @retval None
@@ -366,7 +448,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 0;
+  htim3.Init.Prescaler = 320;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 65535;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -449,12 +531,29 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(NULLIFIER_GPIO_Port, NULLIFIER_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, NRST_Pin|DNC_Pin|NSCE_Pin, GPIO_PIN_RESET);
+
   /*Configure GPIO pin : NULLIFIER_Pin */
   GPIO_InitStruct.Pin = NULLIFIER_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(NULLIFIER_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : NRST_Pin */
+  GPIO_InitStruct.Pin = NRST_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(NRST_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : DNC_Pin NSCE_Pin */
+  GPIO_InitStruct.Pin = DNC_Pin|NSCE_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */

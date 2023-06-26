@@ -64,6 +64,12 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define NULLIFIER_Pin GPIO_PIN_0
 #define NULLIFIER_GPIO_Port GPIOB
+#define NRST_Pin GPIO_PIN_10
+#define NRST_GPIO_Port GPIOA
+#define DNC_Pin GPIO_PIN_11
+#define DNC_GPIO_Port GPIOA
+#define NSCE_Pin GPIO_PIN_12
+#define NSCE_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 
