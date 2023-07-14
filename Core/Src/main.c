@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
+#include "pcd8544.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -57,6 +58,18 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
+
+pcd8544_handle_t pcd8544_handle = {
+        .spi_handle = &hspi1,
+        .nsce_port = NSCE_GPIO_Port,
+        .nsce_pin = NSCE_Pin,
+        .dnc_port = DNC_GPIO_Port,
+        .dnc_pin = DNC_Pin,
+        .nrst_port = NRST_GPIO_Port,
+        .nrst_pin = NRST_Pin,
+};
+
+
 
 /* USER CODE BEGIN PV */
 sonar_t sonar = {0};
@@ -198,6 +211,19 @@ int main(void)
   sonar.tx_count = 20;
   profile.target_density = 1;
     __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_UPDATE);
+
+    pcd8544_init(&pcd8544_handle);
+//
+// Set every second row to black (changes are only applied to back buffer).
+    for (uint8_t x = 0; x < PCD8544_LCD_WIDTH; x++) {
+        for (uint8_t y = 0; y < PCD8544_LCD_HEIGHT; y++) {
+            pcd8544_set_pixel(&pcd8544_handle, x, y, (pcd8544_color_t)(y % 2 == 0));
+        }
+    }
+
+
+// Send back buffer to display.
+    pcd8544_update(&pcd8544_handle);
 
   /* USER CODE END 2 */
 
