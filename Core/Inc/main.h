@@ -45,6 +45,7 @@ typedef struct{
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
 extern sonar_t sonar;
+extern SPI_HandleTypeDef hspi1;
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
