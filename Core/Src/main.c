@@ -204,7 +204,7 @@ int main(void) {
     MX_SPI1_Init();
     /* USER CODE BEGIN 2 */
     sonar.tx_count = 20;
-    profile.target_density = 1;
+    profile.target_density = 10;
     __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_UPDATE);
 
     u8g2_Setup_pcd8544_84x48_f(&u8g2, U8G2_R0, u8x8_byte_stm32_hw_spi, u8x8_stm32_gpio_and_delay);

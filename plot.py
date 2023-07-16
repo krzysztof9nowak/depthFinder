@@ -23,7 +23,11 @@ while True:
         transmission = False
         ticks = np.array(ticks).astype('float32')
         amplitudes = np.array(amplitudes)
-        dist = (1500 * ticks * 321) / 48e6 / 2
+
+        prescaler = 321
+        speedOfSound = 1500
+        coreFreq = 48e6
+        dist = (speedOfSound * ticks * prescaler) / coreFreq / 2
 
         plt.clf()
         plt.plot(dist, amplitudes)
